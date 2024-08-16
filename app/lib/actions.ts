@@ -4,7 +4,7 @@ import { sql } from "@vercel/postgres";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const INVOICE_URL = "/dashboard/invoices";
+const INVOICES_URL = "/dashboard/invoices";
 
 const FormSchema = z.object({
   id: z.string(),
@@ -26,13 +26,17 @@ export async function createInvoice(formData: FormData) {
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split("T")[0];
 
-  await sql`
-  INSERT INTO invoices (customer_id, amount, status, date)
-  VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
-`;
+  try {
+    await sql`
+        INSERT INTO invoices (customer_id, amount, status, date)
+        VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
+        `;
+  } catch (error) {
+    return { message: "Database error: Failed to create invoice" };
+  }
 
-  revalidatePath(INVOICE_URL);
-  redirect(INVOICE_URL);
+  revalidatePath(INVOICES_URL);
+  redirect(INVOICES_URL);
 }
 
 export async function updateInvoice(id: string, formData: FormData) {
@@ -44,12 +48,26 @@ export async function updateInvoice(id: string, formData: FormData) {
 
   const amountInCents = amount * 100;
 
-  await sql`
-    UPDATE invoices
-    SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
-    WHERE id = ${id}
-  `;
+  try {
+    await sql`
+      UPDATE invoices
+      SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
+      WHERE id = ${id}
+      `;
+  } catch (error) {
+    return { message: "Database error: Failed to update invoice" };
+  }
 
-  revalidatePath(INVOICE_URL);
-  redirect(INVOICE_URL);
+  revalidatePath(INVOICES_URL);
+  redirect(INVOICES_URL);
+}
+
+export async function deleteInvoice(id: string) {
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`;
+    revalidatePath(INVOICES_URL);
+    return { message: "Deleted invoice" };
+  } catch (error) {
+    return { message: "Database error: Failed to delete invoice" };
+  }
 }
